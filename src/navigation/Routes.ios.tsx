@@ -97,6 +97,7 @@ import PoapSheet from '@/screens/mints/PoapSheet';
 import { PositionSheet } from '@/screens/positions/PositionSheet';
 import { NFTOffersSheet } from '@/screens/NFTOffersSheet';
 import { NFTSingleOfferSheet } from '@/screens/NFTSingleOfferSheet';
+import { Routes as ExampleRoutes } from './bottom-sheet-navigator/example/Routes';
 
 type StackNavigatorParams = {
   [Routes.SEND_SHEET]: unknown;
@@ -490,7 +491,8 @@ const AppContainerWithAnalytics = React.forwardRef(
       // @ts-ignore
       ref={ref}
     >
-      <NativeStackNavigator />
+      {/* <NativeStackNavigator /> */}
+      <ExampleRoutes />
     </NavigationContainer>
   )
 );
