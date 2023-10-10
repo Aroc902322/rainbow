@@ -18,6 +18,7 @@ export const CROSSCHAIN_SWAPS = 'Crosschain Swaps';
 export const OP_REWARDS = '$OP Rewards';
 export const DEFI_POSITIONS = 'Defi Positions';
 export const NFT_OFFERS = 'NFT Offers';
+export const MINTS = 'Mints';
 
 /**
  * A developer setting that pushes log lines to an array in-memory so that
@@ -36,7 +37,7 @@ export const defaultConfig: Record<string, ExperimentalValue> = {
   [FLASHBOTS_WC]: { settings: true, value: false },
   [HARDWARE_WALLETS]: { settings: true, value: true },
   [L2_TXS]: { needsRestart: true, settings: true, value: true },
-  [LANGUAGE_SETTINGS]: { settings: false, value: false },
+  [LANGUAGE_SETTINGS]: { settings: true, value: false },
   [NOTIFICATIONS]: { needsRestart: true, settings: true, value: true },
   [PROFILES]: { settings: true, value: true },
   [REVIEW_ANDROID]: { settings: false, value: false },
@@ -44,8 +45,8 @@ export const defaultConfig: Record<string, ExperimentalValue> = {
   [OP_REWARDS]: { settings: true, value: false },
   [LOG_PUSH]: { settings: true, value: false },
   [DEFI_POSITIONS]: { settings: true, value: true },
-  [NFT_OFFERS]: { settings: true, value: false },
   [NFT_OFFERS]: { settings: true, value: true },
+  [MINTS]: { settings: true, value: false },
 };
 
 const storageKey = 'config';

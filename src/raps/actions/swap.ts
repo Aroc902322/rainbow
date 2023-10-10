@@ -17,17 +17,18 @@ import {
 } from '../common';
 import { ProtocolType, TransactionStatus, TransactionType } from '@/entities';
 
-import { isL2Network, toHex } from '@/handlers/web3';
-import { parseGasParamsForTransaction } from '@/parsers';
+import { toHex } from '@/handlers/web3';
+import { parseGasParamAmounts } from '@/parsers';
 import { additionalDataUpdateL2AssetToWatch } from '@/redux/additionalAssetsData';
 import { dataAddNewTransaction } from '@/redux/data';
 import store from '@/redux/store';
-import { greaterThan } from '@/helpers/utilities';
-import { AllowancesCache, ethereumUtils, gasUtils } from '@/utils';
+import { AllowancesCache, ethereumUtils } from '@/utils';
 import logger from '@/utils/logger';
 import { estimateSwapGasLimit } from '@/handlers/swap';
 import { MMKV } from 'react-native-mmkv';
 import { STORAGE_IDS } from '@/model/mmkv';
+import { REFERRER } from '@/references';
+import { overrideWithFastSpeedIfNeeded } from '../utils';
 
 export const swapMetadataStorage = new MMKV({
   id: STORAGE_IDS.SWAPS_METADATA_STORAGE,
@@ -115,7 +116,14 @@ export const executeSwap = async ({
       permit,
       chainId
     );
-    return fillQuote(tradeDetails, transactionParams, wallet, permit, chainId);
+    return fillQuote(
+      tradeDetails,
+      transactionParams,
+      wallet,
+      permit,
+      chainId,
+      REFERRER
+    );
   }
 };
 
@@ -138,32 +146,14 @@ const swap = async (
   const { accountAddress } = store.getState().settings;
   const { inputCurrency, outputCurrency } = store.getState().swap;
   const { gasFeeParamsBySpeed, selectedGasFee } = store.getState().gas;
-  const gasParams = parseGasParamsForTransaction(selectedGasFee);
-  // if swap isn't the last action, use fast gas or custom (whatever is faster)
-  const isL2 = isL2Network(
-    ethereumUtils.getNetworkFromChainId(parameters?.chainId || ChainId.mainnet)
-  );
-  const emptyGasFee = isL2
-    ? !gasParams.gasPrice
-    : !gasParams.maxFeePerGas || !gasParams.maxPriorityFeePerGas;
+  let gasParams = parseGasParamAmounts(selectedGasFee);
 
-  if (currentRap.actions.length - 1 > index || emptyGasFee) {
-    const fastMaxFeePerGas =
-      gasFeeParamsBySpeed?.[gasUtils.FAST]?.maxFeePerGas?.amount;
-    const fastMaxPriorityFeePerGas =
-      gasFeeParamsBySpeed?.[gasUtils.FAST]?.maxPriorityFeePerGas?.amount;
-
-    if (greaterThan(fastMaxFeePerGas, gasParams?.maxFeePerGas || 0)) {
-      gasParams.maxFeePerGas = fastMaxFeePerGas;
-    }
-    if (
-      greaterThan(
-        fastMaxPriorityFeePerGas,
-        gasParams?.maxPriorityFeePerGas || 0
-      )
-    ) {
-      gasParams.maxPriorityFeePerGas = fastMaxPriorityFeePerGas;
-    }
+  if (currentRap.actions.length - 1 > index) {
+    gasParams = overrideWithFastSpeedIfNeeded({
+      gasParams,
+      chainId,
+      gasFeeParamsBySpeed,
+    });
   }
   let gasLimit;
   try {

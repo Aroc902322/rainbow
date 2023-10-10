@@ -21,6 +21,7 @@ import * as i18n from '@/languages';
 import { bottomSheetPreset } from '@/navigation/effects';
 import { SimpleSheet } from '@/components/sheet/SimpleSheet';
 import { useDimensions } from '@/hooks';
+import Routes from '@/navigation/routesNames';
 
 const Stack = createStackNavigator();
 const BStack = createBottomSheetNavigator();
@@ -129,12 +130,6 @@ export function SettingsSheet() {
             options={({ route }: any) => ({
               cardStyleInterpolator: settingsCardStyleInterpolator,
               title: route.params?.title || lang.t('settings.backup'),
-              headerStyle: {
-                ...memoSettingsOptions.headerStyle,
-                // only do this if sheet needs a header subtitle AND is not scrollable
-                // if it's scrollable we need a better fix
-                ...(ios && { backgroundColor: 'transparent' }),
-              },
             })}
           />
           <Stack.Screen

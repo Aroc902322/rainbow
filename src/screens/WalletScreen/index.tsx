@@ -10,6 +10,7 @@ import { useRemoveFirst } from '@/navigation/useRemoveFirst';
 import { settingsUpdateNetwork } from '@/redux/settings';
 import useExperimentalFlag, { PROFILES } from '@/config/experimentalHooks';
 import { prefetchENSIntroData } from '@/handlers/ens';
+import { getCachedProviderForNetwork, isHardHat } from '@/handlers/web3';
 import { Navbar, navbarHeight } from '@/components/navbar/Navbar';
 import { Box, Inline } from '@/design-system';
 import {
@@ -28,7 +29,6 @@ import {
   useWalletSectionsData,
 } from '@/hooks';
 import { useNavigation } from '@/navigation';
-import { updateRefetchSavings } from '@/redux/data';
 import { emitPortfolioRequest } from '@/redux/explorer';
 import Routes from '@rainbow-me/routes';
 import { position } from '@/styles';
@@ -40,6 +40,7 @@ import { AppState } from '@/redux/store';
 import { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import { addressCopiedToastAtom } from '@/recoil/addressCopiedToastAtom';
 import { usePositions } from '@/resources/defi/PositionsQuery';
+import { useUserAssets } from '@/resources/assets/UserAssetsQuery';
 
 type RouteParams = {
   WalletScreen: {
@@ -52,7 +53,11 @@ type Props = MaterialTopTabScreenProps<RouteParams, 'WalletScreen'>;
 
 export const WalletScreen: React.FC<Props> = ({ navigation, route }) => {
   const { params } = route;
-  const { setParams, dangerouslyGetState, dangerouslyGetParent } = navigation;
+  const {
+    setParams,
+    getState: dangerouslyGetState,
+    getParent: dangerouslyGetParent,
+  } = navigation;
   const removeFirst = useRemoveFirst();
   const [initialized, setInitialized] = useState(!!params?.initialized);
   const [portfoliosFetched, setPortfoliosFetched] = useState(false);
@@ -67,6 +72,16 @@ export const WalletScreen: React.FC<Props> = ({ navigation, route }) => {
   } = useAccountSettings();
   const { userAccounts } = useUserAccounts();
   usePositions({ address: accountAddress, currency: nativeCurrency });
+
+  const provider = getCachedProviderForNetwork(currentNetwork);
+  const providerUrl = provider?.connection?.url;
+  const connectedToHardhat = isHardHat(providerUrl);
+  useUserAssets({
+    address: accountAddress,
+    currency: nativeCurrency,
+    connectedToHardhat,
+  });
+
   const { portfolios, trackPortfolios } = usePortfolios();
   const loadAccountLateData = useLoadAccountLateData();
   const loadGlobalLateData = useLoadGlobalLateData();
@@ -97,8 +112,6 @@ export const WalletScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const {
     isWalletEthZero,
-    refetchSavings,
-    shouldRefetchSavings,
     isEmpty: isSectionsEmpty,
     briefSectionsData: walletBriefSectionsData,
   } = useWalletSectionsData();
@@ -110,12 +123,12 @@ export const WalletScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
     const isWelcomeScreen =
-      dangerouslyGetParent()?.dangerouslyGetState().routes[0].name ===
+      dangerouslyGetParent()?.getState().routes[0].name ===
       Routes.WELCOME_SCREEN;
     if (isWelcomeScreen) {
       removeFirst();
     }
-  }, [dangerouslyGetParent, dangerouslyGetState, removeFirst]);
+  }, [dangerouslyGetState, removeFirst]);
 
   const { isEmpty: isAccountEmpty } = useAccountEmptyState(isSectionsEmpty);
 
@@ -127,16 +140,6 @@ export const WalletScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 
   const profilesEnabled = useExperimentalFlag(PROFILES);
-
-  useEffect(() => {
-    const fetchAndResetFetchSavings = async () => {
-      await refetchSavings();
-      dispatch(updateRefetchSavings(false));
-    };
-    if (shouldRefetchSavings) {
-      fetchAndResetFetchSavings();
-    }
-  }, [dispatch, refetchSavings, shouldRefetchSavings]);
 
   useEffect(() => {
     const initializeAndSetParams = async () => {

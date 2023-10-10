@@ -112,6 +112,8 @@ const getConfirmedState = (type?: TransactionType): TransactionStatus => {
   switch (type) {
     case TransactionTypes.authorize:
       return TransactionStatus.approved;
+    case TransactionTypes.sell:
+      return TransactionStatus.sold;
     case TransactionTypes.deposit:
       return TransactionStatus.deposited;
     case TransactionTypes.withdraw:
@@ -210,7 +212,7 @@ export const getTransactionSocketStatus = async (
     ? TransactionStatus.bridging
     : TransactionStatus.swapping;
   try {
-    const socketStatus = await rainbowSwapsApi.get('/bridge-status', {
+    const socketStatus = await rainbowSwapsApi.get('/v1/bridge-status', {
       params: {
         txHash: txHash || '',
         fromChainId: String(swap?.fromChainId),

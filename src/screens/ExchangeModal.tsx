@@ -17,6 +17,7 @@ import {
   Keyboard,
   NativeModules,
   TextInput,
+  View,
 } from 'react-native';
 import { useAndroidBackHandler } from 'react-navigation-backhandler';
 import { useDispatch, useSelector } from 'react-redux';
@@ -25,7 +26,6 @@ import { useMemoOne } from 'use-memo-one';
 import { dismissingScreenListener } from '../../shim';
 import {
   ConfirmExchangeButton,
-  DepositInfo,
   ExchangeDetailsRow,
   ExchangeFloatingPanels,
   ExchangeHeader,
@@ -70,7 +70,7 @@ import {
   useWallets,
 } from '@/hooks';
 import { loadWallet } from '@/model/wallet';
-import { useNavigation } from '@/navigation';
+import { useNavigation } from '@react-navigation/core';
 import {
   executeRap,
   getSwapRapEstimationByType,
@@ -103,6 +103,7 @@ import { setHardwareTXError } from '@/navigation/HardwareWalletTxNavigator';
 import { useTheme } from '@/theme';
 import { logger as loggr } from '@/logger';
 import { getNetworkObj } from '@/networks';
+import Animated from 'react-native-reanimated';
 
 export const DEFAULT_SLIPPAGE_BIPS = {
   [Network.mainnet]: 100,
@@ -126,35 +127,9 @@ export const getDefaultSlippageFromConfig = (network: Network) => {
 };
 const NOOP = () => null;
 
-const FloatingPanels = ExchangeFloatingPanels;
+const FloatingPanels = Animated.createAnimatedComponent(ExchangeFloatingPanels);
 
 const Wrapper = KeyboardFixedOpenLayout;
-
-const getInputHeaderTitle = (
-  type: keyof typeof ExchangeModalTypes,
-  defaultInputAsset: SwappableAsset
-) => {
-  switch (type) {
-    case ExchangeModalTypes.deposit:
-      return lang.t('swap.modal_types.deposit');
-    case ExchangeModalTypes.withdrawal:
-      return lang.t('swap.modal_types.withdraw_symbol', {
-        symbol: defaultInputAsset.symbol,
-      });
-    default:
-      return lang.t('swap.modal_types.swap');
-  }
-};
-
-const getShowOutputField = (type: keyof typeof ExchangeModalTypes) => {
-  switch (type) {
-    case ExchangeModalTypes.deposit:
-    case ExchangeModalTypes.withdrawal:
-      return false;
-    default:
-      return true;
-  }
-};
 
 interface ExchangeModalProps {
   fromDiscover: boolean;
@@ -192,8 +167,8 @@ export default function ExchangeModal({
     dispatch(updateSwapTypeDetails(type, typeSpecificParams));
   }, [dispatch, type, typeSpecificParams]);
 
-  const title = getInputHeaderTitle(type, defaultInputAsset);
-  const showOutputField = getShowOutputField(type);
+  const title = lang.t('swap.modal_types.swap');
+
   const priceOfEther = useEthUSDPrice();
   const [
     outputNetworkDetails,
@@ -207,13 +182,10 @@ export default function ExchangeModal({
     goBack,
     navigate,
     setParams,
-    dangerouslyGetParent,
+    getParent: dangerouslyGetParent,
     addListener,
   } = useNavigation();
 
-  const isDeposit = type === ExchangeModalTypes.deposit;
-  const isWithdrawal = type === ExchangeModalTypes.withdrawal;
-  const isSavings = isDeposit || isWithdrawal;
   const {
     selectedGasFee,
     gasFeeParamsBySpeed,
@@ -409,10 +381,8 @@ export default function ExchangeModal({
   }, [outputNetwork, accountAddress]);
 
   const defaultGasLimit = useMemo(() => {
-    const basicSwap = ethereumUtils.getBasicSwapGasLimit(Number(chainId));
-    if (isDeposit) return ethUnits.basic_deposit;
-    return isWithdrawal ? ethUnits.basic_withdrawal : basicSwap;
-  }, [chainId, isDeposit, isWithdrawal]);
+    return ethereumUtils.getBasicSwapGasLimit(Number(chainId));
+  }, [chainId]);
 
   const getNextNonce = useCurrentNonce(accountAddress, currentNetwork);
 
@@ -465,7 +435,7 @@ export default function ExchangeModal({
       isDismissing.current = true;
     };
     const unsubscribe = (
-      dangerouslyGetParent()?.dangerouslyGetParent()?.addListener || addListener
+      dangerouslyGetParent()?.getParent()?.addListener || addListener
     )(
       // @ts-expect-error - Not sure if this is even triggered as React Navigation apparently doesnt emit this event.
       'transitionEnd',
@@ -515,7 +485,7 @@ export default function ExchangeModal({
         tradeDetails: tradeDetails!,
       };
 
-      const rapType = getSwapRapTypeByExchangeType(type, isCrosschainSwap);
+      const rapType = getSwapRapTypeByExchangeType(isCrosschainSwap);
       const gasLimit = await getSwapRapEstimationByType(rapType, swapParams);
       if (gasLimit) {
         if (getNetworkObj(currentNetwork).gas?.OptimismTxFee) {
@@ -728,7 +698,7 @@ export default function ExchangeModal({
           },
         };
 
-        const rapType = getSwapRapTypeByExchangeType(type, isCrosschainSwap);
+        const rapType = getSwapRapTypeByExchangeType(isCrosschainSwap);
         await executeRap(wallet, rapType, swapParameters, callback);
 
         // if the transaction was not successful, we need to bubble that up to the caller
@@ -911,8 +881,7 @@ export default function ExchangeModal({
   const confirmButtonProps = useMemoOne(
     () => ({
       currentNetwork,
-      disabled:
-        !Number(inputAmount) || (!loading && !tradeDetails && !isSavings),
+      disabled: !Number(inputAmount) || (!loading && !tradeDetails),
       inputAmount,
       isAuthorizing,
       isHighPriceImpact: debouncedIsHighPriceImpact,
@@ -1077,9 +1046,7 @@ export default function ExchangeModal({
     outputNetwork,
   ]);
 
-  const showConfirmButton = isSavings
-    ? !!inputCurrency
-    : !!inputCurrency && !!outputCurrency;
+  const showConfirmButton = !!inputCurrency && !!outputCurrency;
 
   const handleConfirmExchangePress = useCallback(() => {
     if (loading) return NOOP();
@@ -1090,49 +1057,49 @@ export default function ExchangeModal({
   return (
     <Wrapper keyboardType={KeyboardType.numpad}>
       <Box height="full" width="full">
-        <FloatingPanels>
-          <>
-            <FloatingPanel
-              borderRadius={39}
-              overflow="visible"
-              paddingBottom={{ custom: showOutputField ? 0 : 24 }}
-              style={{
-                ...(android && {
-                  left: -1,
-                }),
-              }}
-              testID={testID}
-            >
-              {showOutputField && <ExchangeNotch testID={testID} />}
-              <ExchangeHeader testID={testID} title={title} />
-              <ExchangeInputField
-                color={inputCurrencyColor}
-                disableInputCurrencySelection={isWithdrawal}
-                editable={!!inputCurrency}
-                inputAmount={inputAmountDisplay}
-                inputCurrencyAddress={inputCurrency?.address}
-                inputCurrencyAssetType={inputCurrency?.type}
-                inputCurrencyMainnetAddress={inputCurrency?.mainnet_address}
-                inputCurrencySymbol={inputCurrency?.symbol}
-                inputFieldRef={inputFieldRef}
-                loading={loading}
-                nativeAmount={nativeAmountDisplay}
-                nativeCurrency={nativeCurrency}
-                nativeFieldRef={nativeFieldRef}
-                network={inputNetwork}
-                onFocus={handleFocus}
-                onPressMaxBalance={updateMaxInputAmount}
-                onPressSelectInputCurrency={chainId => {
-                  navigateToSelectInputCurrency(chainId);
+        <View style={{ flexGrow: 1, justifyContent: 'center', width: '100%' }}>
+          <FloatingPanels>
+            <>
+              <FloatingPanel
+                borderRadius={39}
+                overflow="visible"
+                paddingBottom={{ custom: 0 }}
+                style={{
+                  ...(android && {
+                    left: -1,
+                  }),
                 }}
-                setInputAmount={updateInputAmount}
-                setNativeAmount={updateNativeAmount}
-                testID={`${testID}-input`}
-                updateAmountOnFocus={
-                  maxInputUpdate || flipCurrenciesUpdate || isFillingParams
-                }
-              />
-              {showOutputField && (
+                testID={testID}
+              >
+                <ExchangeNotch testID={testID} />
+                <ExchangeHeader testID={testID} title={title} />
+                <ExchangeInputField
+                  color={inputCurrencyColor}
+                  disableInputCurrencySelection={false}
+                  editable={!!inputCurrency}
+                  inputAmount={inputAmountDisplay}
+                  inputCurrencyAddress={inputCurrency?.address}
+                  inputCurrencyAssetType={inputCurrency?.type}
+                  inputCurrencyMainnetAddress={inputCurrency?.mainnet_address}
+                  inputCurrencySymbol={inputCurrency?.symbol}
+                  inputFieldRef={inputFieldRef}
+                  loading={loading}
+                  nativeAmount={nativeAmountDisplay}
+                  nativeCurrency={nativeCurrency}
+                  nativeFieldRef={nativeFieldRef}
+                  network={inputNetwork}
+                  onFocus={handleFocus}
+                  onPressMaxBalance={updateMaxInputAmount}
+                  onPressSelectInputCurrency={chainId => {
+                    navigateToSelectInputCurrency(chainId);
+                  }}
+                  setInputAmount={updateInputAmount}
+                  setNativeAmount={updateNativeAmount}
+                  testID={`${testID}-input`}
+                  updateAmountOnFocus={
+                    maxInputUpdate || flipCurrenciesUpdate || isFillingParams
+                  }
+                />
                 <ExchangeOutputField
                   color={outputCurrencyColor}
                   editable={!!outputCurrency && !isCrosschainSwap}
@@ -1158,40 +1125,27 @@ export default function ExchangeModal({
                     maxInputUpdate || flipCurrenciesUpdate || isFillingParams
                   }
                 />
+              </FloatingPanel>
+              {showConfirmButton && (
+                <ExchangeDetailsRow
+                  isHighPriceImpact={
+                    !confirmButtonProps.disabled &&
+                    !confirmButtonProps.loading &&
+                    debouncedIsHighPriceImpact &&
+                    isSufficientBalance
+                  }
+                  onFlipCurrencies={loading ? NOOP : flipCurrencies}
+                  onPressImpactWarning={navigateToSwapDetailsModal}
+                  onPressSettings={navigateToSwapSettingsSheet}
+                  priceImpactColor={priceImpactColor}
+                  priceImpactNativeAmount={priceImpactNativeAmount}
+                  priceImpactPercentDisplay={priceImpactPercentDisplay}
+                  type={type}
+                />
               )}
-            </FloatingPanel>
-            {isDeposit && (
-              <DepositInfo
-                amount={(Number(inputAmount) > 0 && outputAmount) || null}
-                asset={outputCurrency}
-                isHighPriceImpact={debouncedIsHighPriceImpact}
-                onPress={navigateToSwapDetailsModal}
-                priceImpactColor={priceImpactColor}
-                priceImpactNativeAmount={priceImpactNativeAmount}
-                priceImpactPercentDisplay={priceImpactPercentDisplay}
-              />
-            )}
-            {!isSavings && showConfirmButton && (
-              <ExchangeDetailsRow
-                isHighPriceImpact={
-                  !confirmButtonProps.disabled &&
-                  !confirmButtonProps.loading &&
-                  debouncedIsHighPriceImpact &&
-                  isSufficientBalance
-                }
-                onFlipCurrencies={loading ? NOOP : flipCurrencies}
-                onPressImpactWarning={navigateToSwapDetailsModal}
-                onPressSettings={navigateToSwapSettingsSheet}
-                priceImpactColor={priceImpactColor}
-                priceImpactNativeAmount={priceImpactNativeAmount}
-                priceImpactPercentDisplay={priceImpactPercentDisplay}
-                type={type}
-              />
-            )}
-
-            {isWithdrawal && <Box height="30px" />}
-          </>
-        </FloatingPanels>
+            </>
+          </FloatingPanels>
+        </View>
 
         <Box>
           <Rows alignVertical="bottom" space="19px (Deprecated)">

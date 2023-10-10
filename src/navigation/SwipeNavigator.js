@@ -7,30 +7,26 @@ import DiscoverScreen from '../screens/discover/DiscoverScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { WalletScreen } from '@/screens/WalletScreen';
 import { deviceUtils } from '../utils';
-import ScrollPagerWrapper from './ScrollPagerWrapper';
 import Routes from './routesNames';
 import { useAccountSettings, useCoinListEdited } from '@/hooks';
+import { useTheme } from '@/theme';
 
 const Swipe = createMaterialTopTabNavigator();
 
 const renderTabBar = () => null;
 
-const renderPager = props => (
-  <ScrollPagerWrapper {...props} initialScrollPosition={1} />
-);
-
 export function SwipeNavigator() {
   const { isCoinListEdited } = useCoinListEdited();
+  const { colors } = useTheme();
   const { network } = useAccountSettings();
   const [swipeEnabled, setSwipeEnabled] = useState(true);
   const params = useMemo(() => ({ setSwipeEnabled }), []);
 
   return (
-    <FlexItem>
+    <FlexItem style={{ backgroundColor: colors.white }}>
       <Swipe.Navigator
         initialLayout={deviceUtils.dimensions}
         initialRouteName={Routes.WALLET_SCREEN}
-        pager={renderPager}
         swipeEnabled={swipeEnabled && !isCoinListEdited}
         tabBar={renderTabBar}
       >

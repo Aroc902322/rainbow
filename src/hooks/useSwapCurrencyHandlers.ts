@@ -3,21 +3,18 @@ import { InteractionManager, TextInput } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { delayNext } from './useMagicAutofocus';
 import { AssetType } from '@/entities';
-import { CurrencySelectionTypes, ExchangeModalTypes, Network } from '@/helpers';
+import { CurrencySelectionTypes, ExchangeModalTypes } from '@/helpers';
 import { updatePrecisionToDisplay } from '@/helpers/utilities';
 import { useSwapDerivedValues, useSwapInputHandlers } from '@/hooks';
 import { useNavigation } from '@/navigation';
 import { emitAssetRequest } from '@/redux/explorer';
 import {
   flipSwapCurrencies,
-  updateSwapDepositCurrency,
   updateSwapInputAmount,
   updateSwapInputCurrency,
   updateSwapOutputCurrency,
 } from '@/redux/swap';
-import { ETH_ADDRESS } from '@/references';
 import Routes from '@/navigation/routesNames';
-import { ethereumUtils } from '@/utils';
 import { CROSSCHAIN_SWAPS, useExperimentalFlag } from '@/config';
 
 const { currentlyFocusedInput, focusTextInput } = TextInput.State;
@@ -40,7 +37,11 @@ export default function useSwapCurrencyHandlers({
 }: any = {}) {
   const dispatch = useDispatch();
   const crosschainSwapsEnabled = useExperimentalFlag(CROSSCHAIN_SWAPS);
-  const { navigate, setParams, dangerouslyGetParent } = useNavigation();
+  const {
+    navigate,
+    setParams,
+    getParent: dangerouslyGetParent,
+  } = useNavigation();
 
   const { derivedValues } = useSwapDerivedValues();
 
@@ -51,30 +52,6 @@ export default function useSwapCurrencyHandlers({
   } = useSwapInputHandlers();
 
   const { defaultInputItemInWallet, defaultOutputItem } = useMemo(() => {
-    if (type === ExchangeModalTypes.withdrawal) {
-      return {
-        defaultInputItemInWallet: defaultInputAsset,
-        defaultOutputItem: null,
-      };
-    }
-    if (type === ExchangeModalTypes.deposit) {
-      // if the deposit asset exists in wallet, then set it as default input
-      let defaultInputItemInWallet = ethereumUtils.getAccountAsset(
-        defaultInputAsset?.address
-      );
-      let defaultOutputItem = null;
-
-      // if it does not exist, then set it as output
-      if (!defaultInputItemInWallet) {
-        defaultInputItemInWallet = ethereumUtils.getAccountAsset(ETH_ADDRESS);
-        defaultOutputItem = defaultInputAsset;
-      }
-      dispatch(updateSwapDepositCurrency(defaultInputAsset));
-      return {
-        defaultInputItemInWallet,
-        defaultOutputItem,
-      };
-    }
     if (type === ExchangeModalTypes.swap) {
       const defaultInputItemInWallet = defaultInputAsset
         ? {
@@ -235,7 +212,7 @@ export default function useSwapCurrencyHandlers({
     (chainId: number) => {
       InteractionManager.runAfterInteractions(() => {
         // @ts-expect-error ts-migrate(2532) FIXME: Object is possibly 'undefined'.
-        dangerouslyGetParent().dangerouslyGetState().index = 0;
+        dangerouslyGetParent().getState().index = 0;
         setParams({ focused: false });
         delayNext();
         navigate(Routes.CURRENCY_SELECT_SCREEN, {
@@ -262,6 +239,7 @@ export default function useSwapCurrencyHandlers({
     (chainId: number) => {
       InteractionManager.runAfterInteractions(() => {
         setParams({ focused: false });
+        delayNext();
         navigate(Routes.CURRENCY_SELECT_SCREEN, {
           callback: outputFieldRef?.current?.clear,
           chainId,

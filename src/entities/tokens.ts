@@ -30,10 +30,6 @@ export interface ZerionAsset {
   price?: ZerionAssetPrice | null;
 }
 
-export interface SavingsAsset extends Asset {
-  contractAddress: string;
-}
-
 export interface AssetContract {
   address?: string;
   name?: string;
@@ -59,6 +55,7 @@ export interface ParsedAddressAsset
     amount?: string;
     display?: string;
   };
+  chainId?: number;
   color?: string;
   colors?: {
     primary?: string;
@@ -72,7 +69,7 @@ export interface ParsedAddressAsset
   };
   asset_contract?: AssetContract;
   type: string;
-  id: string;
+  id?: string;
   uniqueId: string;
   mainnet_address?: EthereumAddress;
   isNativeAsset?: boolean;

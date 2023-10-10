@@ -12,11 +12,13 @@ import {
   LegacyGasFeeParamsBySpeed,
   LegacyGasFeesBySpeed,
   LegacySelectedGasFee,
+  LegacyTransactionGasParamAmounts,
   MaxPriorityFeeSuggestions,
   NativeCurrencyKey,
   Numberish,
   RainbowMeteorologyData,
   SelectedGasFee,
+  TransactionGasParamAmounts,
 } from '@/entities';
 import { toHex } from '@/handlers/web3';
 import { getMinimalTimeUnitStringForMs } from '@/helpers/time';
@@ -31,6 +33,7 @@ import {
   multiply,
   toFixedDecimals,
 } from '@/helpers/utilities';
+import { Network } from '@/networks/types';
 
 type BigNumberish = number | string | BigNumber;
 
@@ -51,7 +54,8 @@ const getBaseFeeMultiplier = (speed: string) => {
 const parseGasDataConfirmationTime = (
   maxBaseFee: string,
   maxPriorityFee: string,
-  blocksToConfirmation: BlocksToConfirmation
+  blocksToConfirmation: BlocksToConfirmation,
+  secondsPerNewBlock: number
 ) => {
   let blocksToWaitForPriorityFee = 0;
   let blocksToWaitForBaseFee = 0;
@@ -87,7 +91,7 @@ const parseGasDataConfirmationTime = (
   const totalBlocksToWait =
     blocksToWaitForBaseFee +
     (blocksToWaitForBaseFee < 240 ? blocksToWaitForPriorityFee : 0);
-  const timeAmount = 15 * totalBlocksToWait;
+  const timeAmount = secondsPerNewBlock * totalBlocksToWait;
 
   return {
     amount: timeAmount,
@@ -98,19 +102,22 @@ const parseGasDataConfirmationTime = (
 };
 
 export const parseRainbowMeteorologyData = (
-  rainbowMeterologyData: RainbowMeteorologyData
+  rainbowMeterologyData: RainbowMeteorologyData,
+  network: Network
 ): {
   gasFeeParamsBySpeed: GasFeeParamsBySpeed;
   baseFeePerGas: GasFeeParam;
   baseFeeTrend: number;
   currentBaseFee: GasFeeParam;
   blocksToConfirmation: BlocksToConfirmation;
+  secondsPerNewBlock: number;
 } => {
   const {
     baseFeeSuggestion,
     baseFeeTrend,
     maxPriorityFeeSuggestions,
     currentBaseFee,
+    secondsPerNewBlock,
   } = rainbowMeterologyData.data;
 
   const blocksToConfirmation: BlocksToConfirmation = {
@@ -124,25 +131,25 @@ export const parseRainbowMeteorologyData = (
 
   Object.keys(maxPriorityFeeSuggestions).forEach(speed => {
     const baseFeeMultiplier = getBaseFeeMultiplier(speed);
-    const speedMaxBaseFee = toFixedDecimals(
-      multiply(baseFeeSuggestion, baseFeeMultiplier),
-      0
-    );
+    const speedMaxBaseFee = multiply(baseFeeSuggestion, baseFeeMultiplier);
+
     const maxPriorityFee =
       maxPriorityFeeSuggestions[speed as keyof MaxPriorityFeeSuggestions];
     // next version of the package will send only 2 decimals
     const cleanMaxPriorityFee = gweiToWei(
-      new BigNumber(weiToGwei(maxPriorityFee)).toFixed(2)
+      new BigNumber(weiToGwei(maxPriorityFee))
     );
     // clean max base fee to only parser int gwei
-    const cleanMaxBaseFee = gweiToWei(
-      new BigNumber(weiToGwei(speedMaxBaseFee)).toFixed(0)
+    const cleanMaxBaseFee = toFixedDecimals(
+      gweiToWei(new BigNumber(weiToGwei(speedMaxBaseFee))),
+      0
     );
     parsedFees[speed] = {
       estimatedTime: parseGasDataConfirmationTime(
         cleanMaxBaseFee,
         cleanMaxPriorityFee,
-        blocksToConfirmation
+        blocksToConfirmation,
+        secondsPerNewBlock
       ),
       maxBaseFee: parseGasFeeParam(cleanMaxBaseFee),
       maxPriorityFeePerGas: parseGasFeeParam(cleanMaxPriorityFee),
@@ -157,6 +164,7 @@ export const parseRainbowMeteorologyData = (
     blocksToConfirmation,
     currentBaseFee: parsedCurrentBaseFee,
     gasFeeParamsBySpeed: parsedFees,
+    secondsPerNewBlock,
   };
 };
 
@@ -216,12 +224,14 @@ export const defaultGasParamsFormat = (
   option: string,
   maxBaseFee: string,
   maxPriorityFeePerGas: string,
-  blocksToConfirmation: BlocksToConfirmation
+  blocksToConfirmation: BlocksToConfirmation,
+  secondsPerNewBlock: number
 ): GasFeeParams => {
   const time = parseGasDataConfirmationTime(
     maxBaseFee,
     maxPriorityFeePerGas,
-    blocksToConfirmation
+    blocksToConfirmation,
+    secondsPerNewBlock
   );
   return {
     estimatedTime: time,
@@ -267,7 +277,8 @@ export const parseGasFees = (
   baseFeePerGas: GasFeeParam,
   gasLimit: BigNumberish,
   priceUnit: BigNumberish,
-  nativeCurrency: NativeCurrencyKey
+  nativeCurrency: NativeCurrencyKey,
+  l1GasFeeOptimism: BigNumber | null = null
 ) => {
   const { maxPriorityFeePerGas, maxBaseFee } = gasFeeParams || {};
   const priorityFee = maxPriorityFeePerGas?.amount || 0;
@@ -286,13 +297,15 @@ export const parseGasFees = (
     add(maxFeePerGasAmount, priorityFee),
     gasLimit,
     priceUnit,
-    nativeCurrency
+    nativeCurrency,
+    l1GasFeeOptimism
   );
   const estimatedFee = getTxFee(
     add(estimatedFeePerGas, priorityFee),
     gasLimit,
     priceUnit,
-    nativeCurrency
+    nativeCurrency,
+    l1GasFeeOptimism
   );
   return {
     estimatedFee,
@@ -305,7 +318,8 @@ export const parseGasFeesBySpeed = (
   baseFeePerGas: GasFeeParam,
   gasLimit: BigNumberish,
   priceUnit: BigNumberish,
-  nativeCurrency: NativeCurrencyKey
+  nativeCurrency: NativeCurrencyKey,
+  l1GasFeeOptimism: BigNumber | null = null
 ): GasFeesBySpeed => {
   const gasFeesBySpeed = GasSpeedOrder.map(speed =>
     parseGasFees(
@@ -313,7 +327,8 @@ export const parseGasFeesBySpeed = (
       baseFeePerGas,
       gasLimit,
       priceUnit,
-      nativeCurrency
+      nativeCurrency,
+      l1GasFeeOptimism
     )
   );
   return zipObject(GasSpeedOrder, gasFeesBySpeed);
@@ -351,7 +366,7 @@ const getTxFee = (
 
 export const parseGasParamsForTransaction = (
   selectedGasFee: SelectedGasFee | LegacySelectedGasFee
-) => {
+): TransactionGasParamAmounts | LegacyTransactionGasParamAmounts => {
   const legacyGasFeeParams = (selectedGasFee as LegacySelectedGasFee)
     .gasFeeParams;
   const gasPrice = legacyGasFeeParams?.gasPrice;
@@ -367,6 +382,25 @@ export const parseGasParamsForTransaction = (
       )
     ),
     maxPriorityFeePerGas: toHex(gasFeeParams.maxPriorityFeePerGas.amount),
+  };
+};
+
+export const parseGasParamAmounts = (
+  selectedGasFee: SelectedGasFee | LegacySelectedGasFee
+): TransactionGasParamAmounts | LegacyTransactionGasParamAmounts => {
+  const legacyGasFeeParams = (selectedGasFee as LegacySelectedGasFee)
+    .gasFeeParams;
+  const gasPrice = legacyGasFeeParams?.gasPrice;
+  if (gasPrice) {
+    return { gasPrice: gasPrice.amount };
+  }
+  const gasFeeParams = (selectedGasFee as SelectedGasFee).gasFeeParams;
+  return {
+    maxFeePerGas: add(
+      gasFeeParams.maxBaseFee.amount,
+      gasFeeParams.maxPriorityFeePerGas.amount
+    ),
+    maxPriorityFeePerGas: gasFeeParams.maxPriorityFeePerGas.amount,
   };
 };
 

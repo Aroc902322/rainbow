@@ -34,6 +34,15 @@ export interface LegacyTransactionGasParams {
   gasPrice: GasFeeParam;
 }
 
+export interface TransactionGasParamAmounts {
+  maxFeePerGas: string;
+  maxPriorityFeePerGas: string;
+}
+
+export interface LegacyTransactionGasParamAmounts {
+  gasPrice: string;
+}
+
 export interface GasFeeParams {
   maxBaseFee: GasFeeParam;
   maxPriorityFeePerGas: GasFeeParam;
@@ -121,6 +130,7 @@ export interface RainbowMeteorologyData {
     blocksToConfirmationByPriorityFee: BlocksToConfirmationByPriorityFee;
     blocksToConfirmationByBaseFee: BlocksToConfirmationByBaseFee;
     maxPriorityFeeSuggestions: MaxPriorityFeeSuggestions;
+    secondsPerNewBlock: number;
   };
   meta: {
     blockNumber: number;

@@ -1,5 +1,4 @@
 export {
-  parseAccountAssets,
   parseAssetName,
   parseAssetSymbol,
   parseAsset,
@@ -13,6 +12,7 @@ export {
   parseLegacyGasFeesBySpeed,
   gweiToWei,
   weiToGwei,
+  parseGasParamAmounts,
   parseGasParamsForTransaction,
   parseGasFeeParam,
   parseGasFees,

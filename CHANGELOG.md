@@ -13,6 +13,75 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ### Removed
 
+### Fixed
+
+## [1.9.5] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.5)
+
+### Added
+
+- WC improvements
+- Gas improvements
+- NFT Offers networks support
+- Wallet loading state fix
+- Other bug fixes & improvements
+
+## [1.9.4] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.4)
+
+### Added
+
+- Mints feature
+- detox e2e fixes
+- WC version bumps & fixes
+- Gas fixes
+
+## [1.9.3] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.3)
+
+### Added
+
+- WC Updates
+
+## [1.9.2] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.2)
+
+### Added
+
+- WC Updates
+- Navigation upgrades
+- 1559 for L2s
+- Adworld app icon
+- F2C updates
+
+## [1.9.1] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.1)
+
+### Added
+
+- Turn on gif support
+- Fix Base swaps
+- Fix cache key
+
+## [1.9.0] (https://github.com/rainbow-me/rainbow/releases/tag/v1.9.0)
+
+### Added
+
+- Added back keyboard area #5000
+- Added the ability to accept NFT Offers #4965
+- Get NFT expanded state floor price from Reservoir if available #5006
+
+### Changed
+
+- React Native version bump #4955
+- Improved image performance #5001
+
+### Removed
+
+- Goerli support #4986
+
+### Fixed
+
+- Updated Base network icon #4992
+- ERC-20 charts haptics fix #5004
+- Fixed some crashes in appstate #5002
+- Fix WC app redirects #5005
+
 ## [1.8.28] (https://github.com/rainbow-me/rainbow/releases/tag/v1.8.28)
 
 ### Added

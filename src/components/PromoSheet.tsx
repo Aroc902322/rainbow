@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useReducer } from 'react';
-import { ImageSourcePropType, StatusBar } from 'react-native';
+import { ImageSourcePropType, StatusBar, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { SheetActionButton, SheetHandle, SlackSheet } from '@/components/sheet';
 import { CampaignKey } from '@/campaigns/campaignChecks';
-import { ImgixImage } from '@/components/images';
 import { analytics } from '@/analytics';
 import {
   AccentColorProvider,
@@ -118,7 +117,7 @@ export function PromoSheet({
           testID={campaignKey}
         >
           {/* @ts-ignore */}
-          <Box as={ImgixImage} height="full" source={backgroundImage}>
+          <Box as={ImageBackground} height="full" source={backgroundImage}>
             <Rows>
               <Row>
                 <Stack space={{ custom: isSmallPhone ? 46 : 54 }}>
@@ -129,7 +128,7 @@ export function PromoSheet({
                     >
                       {/* @ts-ignore */}
                       <Box
-                        as={ImgixImage}
+                        as={ImageBackground}
                         height={{
                           custom: deviceWidth / headerImageAspectRatio,
                         }}

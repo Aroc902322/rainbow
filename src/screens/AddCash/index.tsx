@@ -1,8 +1,7 @@
 import React from 'react';
-import { getStatusBarHeight } from 'react-native-iphone-x-helper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { ScrollView } from 'react-native';
+import { ScrollView, StatusBar } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import wait from 'w2t';
 
@@ -33,7 +32,7 @@ import { FiatProviderName } from '@/entities/f2c';
 import * as lang from '@/languages';
 
 const deviceHeight = deviceUtils.dimensions.height;
-const statusBarHeight = getStatusBarHeight(true);
+const statusBarHeight = StatusBar.currentHeight || 0;
 
 const providerComponents = {
   [FiatProviderName.Ratio]: Ratio,
@@ -130,7 +129,7 @@ export function AddCashSheet() {
         >
           <Box paddingHorizontal="20px">
             <Text size="26pt" weight="heavy" color="label" align="center">
-              Choose a payment option to buy crypto
+              {lang.t(lang.l.wallet.add_cash_v2.sheet_title)}
             </Text>
           </Box>
 

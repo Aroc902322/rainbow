@@ -3,14 +3,7 @@ import { Logger } from '@ethersproject/logger';
 import { Signer } from '@ethersproject/abstract-signer';
 import { CrosschainQuote, Quote, SwapType } from '@rainbow-me/swaps';
 import { captureException } from '@sentry/react-native';
-import {
-  depositCompound,
-  ens,
-  swap,
-  crosschainSwap,
-  unlock,
-  withdrawCompound,
-} from './actions';
+import { ens, swap, crosschainSwap, unlock } from './actions';
 import {
   createCommitENSRap,
   createRegisterENSRap,
@@ -19,15 +12,7 @@ import {
   createSetRecordsENSRap,
   createTransferENSRap,
 } from './registerENS';
-import {
-  createSwapAndDepositCompoundRap,
-  estimateSwapAndDepositCompound,
-} from './swapAndDepositCompound';
 import { createUnlockAndSwapRap, estimateUnlockAndSwap } from './unlockAndSwap';
-import {
-  createWithdrawFromCompoundRap,
-  estimateWithdrawFromCompound,
-} from './withdrawFromCompound';
 import { analytics } from '@/analytics';
 import { Asset, EthereumAddress, Records, SwappableAsset } from '@/entities';
 import {
@@ -45,6 +30,7 @@ import {
   estimateUnlockAndCrosschainSwap,
 } from './unlockAndCrosschainSwap';
 import { Source, SwapModalField } from '@/redux/swap';
+import * as i18n from '@/languages';
 
 const {
   commitENS,
@@ -59,11 +45,9 @@ const {
 } = ens;
 
 export enum RapActionType {
-  depositCompound = 'depositCompound',
   swap = 'swap',
   crosschainSwap = 'crosschainSwap',
   unlock = 'unlock',
-  withdrawCompound = 'withdrawCompound',
   commitENS = 'commitENS',
   registerENS = 'registerENS',
   multicallENS = 'multicallENS',
@@ -200,7 +184,6 @@ const NOOP = () => null;
 
 export const RapActionTypes = {
   commitENS: 'commitENS' as RapActionType,
-  depositCompound: 'depositCompound' as RapActionType,
   multicallENS: 'multicallENS' as RapActionType,
   reclaimENS: 'reclaimENS' as RapActionType,
   registerENS: 'registerENS' as RapActionType,
@@ -215,24 +198,13 @@ export const RapActionTypes = {
   crosschainSwap: 'crosschainSwap' as RapActionType,
   transferENS: 'transferENS' as RapActionType,
   unlock: 'unlock' as RapActionType,
-  withdrawCompound: 'withdrawCompound' as RapActionType,
 };
 
-export const getSwapRapTypeByExchangeType = (
-  type: string,
-  isCrosschainSwap: boolean
-) => {
-  switch (type) {
-    case ExchangeModalTypes.withdrawal:
-      return RapActionTypes.withdrawCompound;
-    case ExchangeModalTypes.deposit:
-      return RapActionTypes.depositCompound;
-    default:
-      if (isCrosschainSwap) {
-        return RapActionTypes.crosschainSwap;
-      }
-      return RapActionTypes.swap;
+export const getSwapRapTypeByExchangeType = (isCrosschainSwap: boolean) => {
+  if (isCrosschainSwap) {
+    return RapActionTypes.crosschainSwap;
   }
+  return RapActionTypes.swap;
 };
 
 const createSwapRapByType = (
@@ -240,10 +212,6 @@ const createSwapRapByType = (
   swapParameters: SwapActionParameters | CrosschainSwapActionParameters
 ) => {
   switch (type) {
-    case RapActionTypes.depositCompound:
-      return createSwapAndDepositCompoundRap(swapParameters);
-    case RapActionTypes.withdrawCompound:
-      return createWithdrawFromCompoundRap(swapParameters);
     case RapActionTypes.crosschainSwap:
       return createUnlockAndCrosschainSwapRap(
         swapParameters as CrosschainSwapActionParameters
@@ -279,16 +247,12 @@ export const getSwapRapEstimationByType = (
   swapParameters: SwapActionParameters | CrosschainSwapActionParameters
 ) => {
   switch (type) {
-    case RapActionTypes.depositCompound:
-      return estimateSwapAndDepositCompound(swapParameters);
     case RapActionTypes.swap:
       return estimateUnlockAndSwap(swapParameters);
     case RapActionTypes.crosschainSwap:
       return estimateUnlockAndCrosschainSwap(
         swapParameters as CrosschainSwapActionParameters
       );
-    case RapActionTypes.withdrawCompound:
-      return estimateWithdrawFromCompound();
     default:
       return null;
   }
@@ -322,10 +286,6 @@ const findSwapActionByType = (type: RapActionType) => {
       return unlock;
     case RapActionTypes.swap:
       return swap;
-    case RapActionTypes.depositCompound:
-      return depositCompound;
-    case RapActionTypes.withdrawCompound:
-      return withdrawCompound;
     case RapActionTypes.crosschainSwap:
       return crosschainSwap;
     default:
@@ -363,15 +323,16 @@ const getRapFullName = (actions: RapAction[]) => {
   return actionTypes.join(' + ');
 };
 
+// i18n
 const parseError = (error: EthersError): string => {
   const errorCode = error?.code;
   switch (errorCode) {
     case Logger.errors.UNPREDICTABLE_GAS_LIMIT:
-      return 'Oh no! We were unable to estimate the gas limit. Please try again.';
+      return i18n.t(i18n.l.wallet.transaction.errors.unpredictable_gas);
     case Logger.errors.INSUFFICIENT_FUNDS:
-      return 'Oh no! The gas price changed and you no longer have enough funds for this transaction. Please try again with a lower amount.';
+      return i18n.t(i18n.l.wallet.transaction.errors.insufficient_funds);
     default:
-      return 'Oh no! There was a problem submitting the transaction. Please try again.';
+      return i18n.t(i18n.l.wallet.transaction.errors.generic);
   }
 };
 
@@ -434,8 +395,6 @@ const getRapTypeFromActionType = (actionType: RapActionType) => {
     case RapActionTypes.swap:
     case RapActionTypes.crosschainSwap:
     case RapActionTypes.unlock:
-    case RapActionTypes.depositCompound:
-    case RapActionTypes.withdrawCompound:
       return RAP_TYPE.EXCHANGE;
     case RapActionTypes.commitENS:
     case RapActionTypes.registerENS:

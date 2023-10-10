@@ -37,13 +37,18 @@ import {
   runFeatureAndCampaignChecks,
   runWalletBackupStatusChecks,
 } from './handlers/walletReadyEvents';
-import { isL2Network } from './handlers/web3';
+import {
+  getCachedProviderForNetwork,
+  isHardHat,
+  isL2Network,
+} from './handlers/web3';
 import RainbowContextWrapper from './helpers/RainbowContext';
 import isTestFlight from './helpers/isTestFlight';
 import networkTypes from './helpers/networkTypes';
 import * as keychain from '@/model/keychain';
 import { loadAddress } from './model/wallet';
 import { Navigation } from './navigation';
+// eslint-disable-next-line import/no-unresolved
 import RoutesComponent from './navigation/Routes';
 import { PerformanceContextMap } from './performance/PerformanceContextMap';
 import { PerformanceTracking } from './performance/tracking';
@@ -54,11 +59,11 @@ import {
   queryClient,
 } from './react-query';
 import { additionalDataUpdateL2AssetBalance } from './redux/additionalAssetsData';
-import { fetchAssetsFromRefraction } from './redux/explorer';
 import store from './redux/store';
 import { uniswapPairsInit } from './redux/uniswap';
 import { walletConnectLoadState } from './redux/walletconnect';
 import { rainbowTokenList } from './references';
+import { userAssetsQueryKey } from '@/resources/assets/UserAssetsQuery';
 import { MainThemeProvider } from './theme/ThemeContext';
 import { ethereumUtils } from './utils';
 import { branchListener } from './utils/branch';
@@ -80,6 +85,7 @@ import { migrate } from '@/migrations';
 import { initListeners as initWalletConnectListeners } from '@/walletConnect';
 import { saveFCMToken } from '@/notifications/tokens';
 import branch from 'react-native-branch';
+import { initializeReservoirClient } from '@/resources/nftOffers/utils';
 
 if (__DEV__) {
   reactNativeDisableYellowBox && LogBox.ignoreAllLogs();
@@ -92,7 +98,11 @@ enableScreens();
 const containerStyle = { flex: 1 };
 
 class OldApp extends Component {
-  state = { appState: AppState.currentState, initialRoute: null };
+  state = {
+    appState: AppState.currentState,
+    initialRoute: null,
+    eventSubscription: null,
+  };
 
   /**
    * There's a race condition in Branch's RN SDK. From a cold start, Branch
@@ -137,7 +147,11 @@ class OldApp extends Component {
     InteractionManager.runAfterInteractions(() => {
       rainbowTokenList.update();
     });
-    AppState.addEventListener('change', this.handleAppStateChange);
+    const eventSub = AppState?.addEventListener(
+      'change',
+      this?.handleAppStateChange
+    );
+    this.setState({ eventSubscription: eventSub });
     rainbowTokenList.on('update', this.handleTokenListUpdate);
     appEvents.on('transactionConfirmed', this.handleTransactionConfirmed);
 
@@ -177,9 +191,9 @@ class OldApp extends Component {
   }
 
   componentWillUnmount() {
-    AppState.removeEventListener('change', this.handleAppStateChange);
-    rainbowTokenList?.off?.('update', this.handleTokenListUpdate);
-    this.branchListener?.();
+    this.state.eventSubscription.remove();
+    rainbowTokenList.off('update', this.handleTokenListUpdate);
+    this.branchListener();
   }
 
   identifyFlow = async () => {
@@ -219,7 +233,13 @@ class OldApp extends Component {
       ? ethereumUtils.getNetworkFromChainId(tx.chainId)
       : tx.network || networkTypes.mainnet;
     const isL2 = isL2Network(network);
+
+    const provider = getCachedProviderForNetwork(network);
+    const providerUrl = provider?.connection?.url;
+    const connectedToHardhat = isHardHat(providerUrl);
+
     const updateBalancesAfter = (timeout, isL2, network) => {
+      const { accountAddress, nativeCurrency } = store.getState().settings;
       setTimeout(() => {
         logger.debug('Reloading balances for network', network);
         if (isL2) {
@@ -227,10 +247,22 @@ class OldApp extends Component {
             store.dispatch(additionalDataUpdateL2AssetBalance(tx));
           } else if (tx.internalType !== TransactionType.authorize) {
             // for swaps, we don't want to trigger update balances on unlock txs
-            store.dispatch(fetchAssetsFromRefraction());
+            queryClient.invalidateQueries({
+              queryKey: userAssetsQueryKey({
+                address: accountAddress,
+                currency: nativeCurrency,
+                connectedToHardhat,
+              }),
+            });
           }
         } else {
-          store.dispatch(fetchAssetsFromRefraction());
+          queryClient.invalidateQueries({
+            queryKey: userAssetsQueryKey({
+              address: accountAddress,
+              currency: nativeCurrency,
+              connectedToHardhat,
+            }),
+          });
         }
       }, timeout);
     };
@@ -358,6 +390,7 @@ function Root() {
         // for failure, continue to rest of the app for now
         setInitializing(false);
       });
+    initializeReservoirClient();
   }, [setInitializing]);
 
   return initializing ? null : (

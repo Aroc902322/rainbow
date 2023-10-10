@@ -1,12 +1,10 @@
-import { mapKeys, mapValues } from 'lodash';
 import { savingsAssets } from './compound';
 import { default as DefaultTokenListsSource } from './default-token-lists';
-import { Asset, SavingsAsset, UniswapFavoriteTokenData } from '@/entities';
+import { Asset, UniswapFavoriteTokenData } from '@/entities';
 import { Network } from '@/helpers/networkTypes';
 
 export { default as balanceCheckerContractAbi } from './balances-checker-abi.json';
 export { default as chainAssets } from './chain-assets.json';
-export { compoundCERC20ABI, compoundCETHABI } from './compound';
 export { DefaultTokenListsSource as DefaultTokenLists };
 export {
   signatureRegistryABI,
@@ -226,15 +224,4 @@ export const savingsAssetsList: Record<
   Record<string, Asset>
 > = savingsAssets;
 
-export const savingsAssetsListByUnderlying: Record<
-  string,
-  Record<string, SavingsAsset>
-> = mapValues(savingsAssets, (assetsByNetwork: Record<string, Asset>) =>
-  mapKeys(
-    mapValues(assetsByNetwork, (assetByContract, contractAddress) => ({
-      ...assetByContract,
-      contractAddress,
-    })),
-    value => value.address
-  )
-);
+export const REFERRER = 'native-app';

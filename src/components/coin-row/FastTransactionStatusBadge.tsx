@@ -3,9 +3,10 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Spinner from '../Spinner';
 import { Icon } from '../icons';
 import { Text } from '@/design-system';
-import { TransactionStatusTypes } from '@/entities';
+import { TransactionStatus, TransactionStatusTypes } from '@/entities';
 import { position } from '@/styles';
 import { ThemeContextProps } from '@/theme';
+import * as lang from '@/languages';
 
 const StatusProps = {
   [TransactionStatusTypes.approved]: {
@@ -39,6 +40,10 @@ const StatusProps = {
     marginTop: ios ? 1 : 0,
   },
   [TransactionStatusTypes.swapping]: {
+    marginRight: 4,
+    marginTop: ios ? 1 : 0,
+  },
+  [TransactionStatusTypes.selling]: {
     marginRight: 4,
     marginTop: ios ? 1 : 0,
   },
@@ -121,6 +126,15 @@ const StatusProps = {
       marginTop: ios ? -3 : -5,
     },
   },
+  [TransactionStatusTypes.sold]: {
+    name: 'sunflower',
+    style: {
+      fontSize: 11,
+      left: -1.3,
+      marginRight: 1,
+      marginTop: ios ? -3 : -5,
+    },
+  },
 };
 
 const sx = StyleSheet.create({
@@ -181,7 +195,8 @@ export default React.memo(function FastTransactionStatusBadge({
         size="14px / 19px (Deprecated)"
         weight="semibold"
       >
-        {title}
+        {/* @ts-expect-error cant get keys*/}
+        {lang.t(lang.l.transactions.type[status])}
       </Text>
     </View>
   );
